@@ -1,0 +1,1 @@
+Api opensource go que tras informações financeiras para o apliativo da play store
