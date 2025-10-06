@@ -6,7 +6,7 @@ CREATE TABLE recomendacoes_financeiras (
 
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
-    username TEXT UNIQUE NOT NULL,
+    email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
     is_admin BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -18,5 +18,5 @@ VALUES
 ('Qual melhor corretora hoje', 'XP Investimentos');
 
 -- Create default admin user (password: admin123)
-INSERT INTO users (username, password, is_admin)
-VALUES ('admin', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', true);
+INSERT INTO users (email, password, is_admin)
+VALUES ('admin@example.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', true);
