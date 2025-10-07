@@ -10,8 +10,23 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
+	"github.com/swaggo/gin-swagger"
 )
+
+func runMigrations() {
+	sqlBytes, err := os.ReadFile("db/init.sql")
+	if err != nil {
+		log.Fatal("❌ Erro ao ler arquivo de migração:", err)
+	}
+
+	sql := string(sqlBytes)
+	_, err = config.DB.Exec(sql)
+	if err != nil {
+		log.Fatal("❌ Erro ao executar migrações:", err)
+	}
+
+	log.Println("✅ Migrações executadas com sucesso")
+}
 
 func main() {
 	// Carregar variáveis do .env
@@ -22,6 +37,9 @@ func main() {
 
 	// Conectar banco
 	config.ConnectDB()
+
+	// Executar migrações
+	runMigrations()
 
 	// Criar router
 	r := gin.Default()

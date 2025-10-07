@@ -167,7 +167,7 @@ func UpdateRecomendacao(c *gin.Context) {
 		return
 	}
 
-	query := "UPDATE recomendacoes_financeiras SET titulo = $1, descricao = $2 WHERE id = $3"
+	query := "UPDATE recomendacoes_financeiras SET titulo = $1, descricao = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3"
 	result, err := config.DB.Exec(query, recomendacao.Titulo, recomendacao.Descricao, id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao atualizar recomendação"})
