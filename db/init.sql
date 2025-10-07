@@ -1,22 +1,18 @@
-CREATE TABLE recomendacoes_financeiras (
+CREATE TABLE IF NOT EXISTS recomendacoes_financeiras (
     id SERIAL PRIMARY KEY,
     titulo TEXT NOT NULL,
     descricao TEXT NOT NULL
 );
 
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    is_admin BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- Add new columns if they don't exist
+ALTER TABLE recomendacoes_financeiras ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE recomendacoes_financeiras ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+-- Insert initial data if table is empty
+INSERT INTO recomendacoes_financeiras (titulo, descricao)
+SELECT 'Onde investir hoje', 'Renda fixa com liquidez diária'
+WHERE NOT EXISTS (SELECT 1 FROM recomendacoes_financeiras WHERE titulo = 'Onde investir hoje');
 
 INSERT INTO recomendacoes_financeiras (titulo, descricao)
-VALUES
-('Onde investir hoje', 'Renda fixa com liquidez diária'),
-('Qual melhor corretora hoje', 'XP Investimentos');
-
--- Create default admin user (password: admin123)
-INSERT INTO users (email, password, is_admin)
-VALUES ('admin@example.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', true);
+SELECT 'Qual melhor corretora hoje', 'XP Investimentos'
+WHERE NOT EXISTS (SELECT 1 FROM recomendacoes_financeiras WHERE titulo = 'Qual melhor corretora hoje');

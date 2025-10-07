@@ -30,19 +30,10 @@ func main() {
 	r.GET("/informacoes-financeiras", handlers.GetInformacoesFinanceiras)
 	r.GET("/recomendacoes", handlers.GetRecomendacoes)
 
-	// Authentication endpoints
-	r.POST("/register", handlers.Register)
-	r.POST("/login", handlers.Login)
-
-	// Protected endpoints (require authentication and admin role)
-	protected := r.Group("/")
-	protected.Use(handlers.AuthMiddleware())
-	protected.Use(handlers.AdminMiddleware())
-	{
-		protected.POST("/recomendacoes", handlers.CreateRecomendacao)
-		protected.PUT("/recomendacoes/:id", handlers.UpdateRecomendacao)
-		protected.DELETE("/recomendacoes/:id", handlers.DeleteRecomendacao)
-	}
+	// Public endpoints for recommendations
+	r.POST("/recomendacoes", handlers.CreateRecomendacao)
+	r.PUT("/recomendacoes/:id", handlers.UpdateRecomendacao)
+	r.DELETE("/recomendacoes/:id", handlers.DeleteRecomendacao)
 
 	// Calculations endpoints
 	r.GET("/calculations/currency", handlers.GetCurrencyConversion)
