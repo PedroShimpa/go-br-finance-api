@@ -109,7 +109,7 @@ func ChatWithOllama(c *gin.Context) {
 	// Add system message
 	ollamaMessages = append(ollamaMessages, OllamaMessage{
 		Role:    "system",
-		Content: "Você é um consultor financeiro brasileiro. Forneça conselhos em português brasileiro, pesquisando na web as melhores informações para investir. Use fontes confiáveis e mostre seu raciocínio passo a passo. Mantenha as respostas concisas, com no máximo 300 caracteres.",
+		Content: "Você é um consultor financeiro brasileiro. Forneça conselhos em português brasileiro, pesquisando na web as melhores informações para investir. Use fontes confiáveis e mostre seu raciocínio passo a passo. Mantenha as respostas concisas, com no máximo 300 caracteres. Responda sempre em português brasileiro, nunca em inglês.",
 	})
 	for _, msg := range conversation.Messages {
 		ollamaMessages = append(ollamaMessages, OllamaMessage{
@@ -144,7 +144,6 @@ func ChatWithOllama(c *gin.Context) {
 	c.Header("Connection", "keep-alive")
 
 	var fullResponse strings.Builder
-	var wordBuffer strings.Builder
 	scanner := bufio.NewScanner(resp.Body)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -159,23 +158,9 @@ func ChatWithOllama(c *gin.Context) {
 
 		content := chunk.Message.Content
 		fullResponse.WriteString(content)
-		wordBuffer.WriteString(content)
 
-		// Send word by word
-		words := strings.Split(wordBuffer.String(), " ")
-		if len(words) > 1 {
-			for i := 0; i < len(words)-1; i++ {
-				event := fmt.Sprintf("data: %s \n\n", words[i])
-				c.Writer.WriteString(event)
-				c.Writer.Flush()
-			}
-			wordBuffer.Reset()
-			wordBuffer.WriteString(words[len(words)-1])
-		}
-	}
-	// Send remaining buffer
-	if wordBuffer.Len() > 0 {
-		event := fmt.Sprintf("data: %s\n\n", wordBuffer.String())
+		// Send the content as is for real streaming
+		event := fmt.Sprintf("data: %s\n\n", content)
 		c.Writer.WriteString(event)
 		c.Writer.Flush()
 	}
