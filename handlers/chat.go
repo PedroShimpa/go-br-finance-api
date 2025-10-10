@@ -120,7 +120,7 @@ func ChatWithOllama(c *gin.Context) {
 
 	// Call Ollama API via HTTP with streaming
 	ollamaReq := OllamaChatRequest{
-		Model:       "deepseek-r1:1.5b",
+		Model:       "llama3.2:3b",
 		Messages:    ollamaMessages,
 		Stream:      true,
 		Temperature: 0.1,
