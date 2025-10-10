@@ -7,10 +7,11 @@ import (
 	"go-br-finance-api/config"
 	"go-br-finance-api/handlers"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	swaggerFiles "github.com/swaggo/files"
-	"github.com/swaggo/gin-swagger"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func runMigrations() {
@@ -43,6 +44,9 @@ func main() {
 
 	// Criar router
 	r := gin.Default()
+
+	// CORS middleware
+	r.Use(cors.Default())
 
 	// Public endpoints (no authentication required)
 	r.GET("/informacoes-financeiras", handlers.GetInformacoesFinanceiras)
