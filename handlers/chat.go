@@ -217,3 +217,30 @@ func GetChat(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"messages": conversation.Messages})
 }
+
+// DeleteChat godoc
+// @Summary Delete chat conversation
+// @Description Delete the conversation for a session from Redis
+// @Tags chat
+// @Accept  json
+// @Produce  json
+// @Param session_id query string true "Session ID"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Router /chat [delete]
+func DeleteChat(c *gin.Context) {
+	sessionID := c.Query("session_id")
+	if sessionID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "session_id required"})
+		return
+	}
+
+	ctx := context.Background()
+	sessionKey := "chat:" + sessionID
+
+	if config.RedisClient != nil {
+		config.RedisClient.Del(ctx, sessionKey)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Conversation deleted"})
+}

@@ -68,6 +68,7 @@ func main() {
 	// Chat endpoint
 	r.POST("/chat", handlers.ChatWithOllama)
 	r.GET("/chat", handlers.GetChat)
+	r.DELETE("/chat", handlers.DeleteChat)
 
 	// Stocks endpoint
 	r.GET("/stocks", handlers.GetStocks)

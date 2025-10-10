@@ -3,9 +3,11 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"go-br-finance-api/config"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -33,41 +35,57 @@ func GetStocks(c *gin.Context) {
 	ctx := context.Background()
 
 	// Check cache
+	var allStocks []Stock
 	if config.RedisClient != nil {
 		cached, err := config.RedisClient.Get(ctx, "stocks").Result()
 		if err == nil {
-			var stocks []Stock
-			json.Unmarshal([]byte(cached), &stocks)
-			c.JSON(http.StatusOK, stocks)
-			return
+			json.Unmarshal([]byte(cached), &allStocks)
 		}
 	}
 
-	url := "https://brapi.dev/api/quote/list?limit=1000&type=stock&token=" + os.Getenv("BRAPI_TOKEN")
+	// If not cached, fetch all
+	if len(allStocks) == 0 {
+		url := fmt.Sprintf("https://brapi.dev/api/quote/list?limit=1000&type=stock&token=%s", os.Getenv("BRAPI_TOKEN"))
 
-	resp, err := http.Get(url)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch data from brapi.dev"})
-		return
+		resp, err := http.Get(url)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch data from brapi.dev"})
+			return
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != 200 {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "brapi.dev API returned error"})
+			return
+		}
+
+		var brapiResp BrapiResponse
+		if err := json.NewDecoder(resp.Body).Decode(&brapiResp); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse response"})
+			return
+		}
+
+		allStocks = brapiResp.Stocks
+
+		// Cache the data
+		if config.RedisClient != nil {
+			data, _ := json.Marshal(allStocks)
+			config.RedisClient.Set(ctx, "stocks", data, 30*time.Minute)
+		}
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "brapi.dev API returned error"})
-		return
+	// Apply limit
+	limitStr := c.DefaultQuery("limit", "30")
+	limit := 30
+	if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+		limit = l
 	}
 
-	var brapiResp BrapiResponse
-	if err := json.NewDecoder(resp.Body).Decode(&brapiResp); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse response"})
-		return
+	if limit > len(allStocks) {
+		limit = len(allStocks)
 	}
 
-	// Cache the data
-	if config.RedisClient != nil {
-		data, _ := json.Marshal(brapiResp.Stocks)
-		config.RedisClient.Set(ctx, "stocks", data, 30*time.Minute)
-	}
+	stocks := allStocks[:limit]
 
-	c.JSON(http.StatusOK, brapiResp.Stocks)
+	c.JSON(http.StatusOK, stocks)
 }
