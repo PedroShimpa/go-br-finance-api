@@ -31,9 +31,10 @@ type OllamaMessage struct {
 }
 
 type OllamaChatRequest struct {
-	Model    string          `json:"model"`
-	Messages []OllamaMessage `json:"messages"`
-	Stream   bool            `json:"stream"`
+	Model       string          `json:"model"`
+	Messages    []OllamaMessage `json:"messages"`
+	Stream      bool            `json:"stream"`
+	Temperature float64         `json:"temperature"`
 }
 
 type OllamaChatResponse struct {
@@ -108,7 +109,7 @@ func ChatWithOllama(c *gin.Context) {
 	// Add system message
 	ollamaMessages = append(ollamaMessages, OllamaMessage{
 		Role:    "system",
-		Content: "You are a financial advisor. Provide advice in plain text without any formatting.",
+		Content: "Você é um consultor financeiro brasileiro. Forneça conselhos em português brasileiro, pesquisando na web as melhores informações para investir. Use fontes confiáveis e mostre seu raciocínio passo a passo.",
 	})
 	for _, msg := range conversation.Messages {
 		ollamaMessages = append(ollamaMessages, OllamaMessage{
@@ -119,9 +120,10 @@ func ChatWithOllama(c *gin.Context) {
 
 	// Call Ollama API via HTTP with streaming
 	ollamaReq := OllamaChatRequest{
-		Model:    "financial-model:latest",
-		Messages: ollamaMessages,
-		Stream:   true,
+		Model:       "deepseek-r1:1.5b",
+		Messages:    ollamaMessages,
+		Stream:      true,
+		Temperature: 0.1,
 	}
 
 	ollamaURL := os.Getenv("OLLAMA_URL")
