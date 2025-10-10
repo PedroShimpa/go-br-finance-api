@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -74,6 +75,19 @@ func GetStocks(c *gin.Context) {
 		}
 	}
 
+	// Apply search
+	search := strings.ToLower(c.DefaultQuery("search", ""))
+	var filteredStocks []Stock
+	if search != "" {
+		for _, stock := range allStocks {
+			if strings.Contains(strings.ToLower(stock.Symbol), search) || strings.Contains(strings.ToLower(stock.Name), search) {
+				filteredStocks = append(filteredStocks, stock)
+			}
+		}
+	} else {
+		filteredStocks = allStocks
+	}
+
 	// Apply limit
 	limitStr := c.DefaultQuery("limit", "30")
 	limit := 30
@@ -81,11 +95,11 @@ func GetStocks(c *gin.Context) {
 		limit = l
 	}
 
-	if limit > len(allStocks) {
-		limit = len(allStocks)
+	if limit > len(filteredStocks) {
+		limit = len(filteredStocks)
 	}
 
-	stocks := allStocks[:limit]
+	stocks := filteredStocks[:limit]
 
 	c.JSON(http.StatusOK, stocks)
 }
