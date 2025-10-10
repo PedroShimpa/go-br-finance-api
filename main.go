@@ -36,14 +36,14 @@ func main() {
 		log.Println("⚠️  .env não encontrado, usando variáveis de ambiente do sistema")
 	}
 
-	// Conectar banco (commented for testing chat without DB)
-	// config.ConnectDB()
+	// Conectar banco
+	config.ConnectDB()
 
 	// Conectar Redis
 	config.ConnectRedis()
 
-	// Executar migrações (commented for testing)
-	// runMigrations()
+	// Executar migrações
+	runMigrations()
 
 	// Criar router
 	r := gin.Default()
