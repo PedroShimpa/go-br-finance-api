@@ -203,6 +203,11 @@ func GetChat(c *gin.Context) {
 		return
 	}
 
+	if config.RedisClient == nil {
+		c.JSON(http.StatusOK, gin.H{"messages": []models.Message{}})
+		return
+	}
+
 	ctx := context.Background()
 	sessionKey := "chat:" + sessionID
 
