@@ -67,6 +67,7 @@ func main() {
 
 	// Chat endpoint
 	r.POST("/chat", handlers.ChatWithOllama)
+	r.GET("/chat", handlers.GetChat)
 
 	// Swagger docs endpoint
 	r.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

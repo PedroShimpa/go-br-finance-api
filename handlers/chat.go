@@ -152,10 +152,13 @@ func ChatWithOllama(c *gin.Context) {
 		content := chunk.Message.Content
 		fullResponse.WriteString(content)
 
-		// Send chunk via SSE
-		event := fmt.Sprintf("data: %s\n\n", content)
-		c.Writer.WriteString(event)
-		c.Writer.Flush()
+		// Send each word separately for streaming effect
+		words := strings.Fields(content)
+		for _, word := range words {
+			event := fmt.Sprintf("data: %s \n\n", word)
+			c.Writer.WriteString(event)
+			c.Writer.Flush()
+		}
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -177,4 +180,36 @@ func ChatWithOllama(c *gin.Context) {
 	// End the stream
 	c.Writer.WriteString("data: [DONE]\n\n")
 	c.Writer.Flush()
+}
+
+// GetChat godoc
+// @Summary Get chat conversation
+// @Description Retrieve the conversation for a session from Redis
+// @Tags chat
+// @Accept  json
+// @Produce  json
+// @Param session_id query string true "Session ID"
+// @Success 200 {object} map[string][]models.Message
+// @Failure 400 {object} map[string]string
+// @Router /chat [get]
+func GetChat(c *gin.Context) {
+	sessionID := c.Query("session_id")
+	if sessionID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "session_id required"})
+		return
+	}
+
+	ctx := context.Background()
+	sessionKey := "chat:" + sessionID
+
+	conversationJSON, err := config.RedisClient.Get(ctx, sessionKey).Result()
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"messages": []models.Message{}})
+		return
+	}
+
+	var conversation models.Conversation
+	json.Unmarshal([]byte(conversationJSON), &conversation)
+
+	c.JSON(http.StatusOK, gin.H{"messages": conversation.Messages})
 }
