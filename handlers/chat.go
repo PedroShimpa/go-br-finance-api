@@ -1,0 +1,180 @@
+package handlers
+
+import (
+	"bufio"
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"os"
+	"strings"
+
+	"go-br-finance-api/config"
+	"go-br-finance-api/models"
+
+	"github.com/gin-gonic/gin"
+)
+
+type ChatRequest struct {
+	SessionID string `json:"session_id" binding:"required"`
+	Message   string `json:"message" binding:"required"`
+}
+
+type ChatResponse struct {
+	Response string `json:"response"`
+}
+
+type OllamaMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+type OllamaChatRequest struct {
+	Model    string          `json:"model"`
+	Messages []OllamaMessage `json:"messages"`
+	Stream   bool            `json:"stream"`
+}
+
+type OllamaChatResponse struct {
+	Message OllamaMessage `json:"message"`
+}
+
+// WebSearch performs a web search using a simple API (mock for demo)
+func WebSearch(query string) string {
+	// Mock web search - in production, use a real API like SerpAPI or Google Custom Search
+	// For demo, return a fixed response
+	return fmt.Sprintf("Web search results for '%s': [Mock] Latest financial news includes market trends, investment tips, etc.", query)
+}
+
+// ChatWithOllama godoc
+// @Summary Chat with financial AI model
+// @Description Send a message to the Ollama financial model and get a streamed response, with conversation saved in Redis
+// @Tags chat
+// @Accept  json
+// @Produce  text/event-stream
+// @Param request body ChatRequest true "Chat request"
+// @Success 200 {string} string "Streamed response"
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /chat [post]
+func ChatWithOllama(c *gin.Context) {
+	var req ChatRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request", "details": err.Error()})
+		return
+	}
+
+	ctx := context.Background()
+	sessionKey := "chat:" + req.SessionID
+
+	// Retrieve conversation from Redis (if available)
+	var conversation models.Conversation
+	if config.RedisClient != nil {
+		conversationJSON, err := config.RedisClient.Get(ctx, sessionKey).Result()
+		if err == nil {
+			// Parse existing conversation
+			json.Unmarshal([]byte(conversationJSON), &conversation)
+		} else {
+			// New conversation
+			conversation = models.Conversation{
+				SessionID: req.SessionID,
+				Messages:  []models.Message{},
+			}
+		}
+	} else {
+		// No Redis, new conversation each time
+		conversation = models.Conversation{
+			SessionID: req.SessionID,
+			Messages:  []models.Message{},
+		}
+	}
+
+	// Append user message
+	conversation.Messages = append(conversation.Messages, models.Message{
+		Role:    "user",
+		Content: req.Message,
+	})
+
+	// Check if web search is needed
+	if strings.Contains(strings.ToLower(req.Message), "search") || strings.Contains(strings.ToLower(req.Message), "web") {
+		searchResults := WebSearch(req.Message)
+		// Append search results to the last user message
+		conversation.Messages[len(conversation.Messages)-1].Content += "\n\nWeb Search Results:\n" + searchResults
+	}
+
+	// Prepare messages for Ollama
+	var ollamaMessages []OllamaMessage
+	for _, msg := range conversation.Messages {
+		ollamaMessages = append(ollamaMessages, OllamaMessage{
+			Role:    msg.Role,
+			Content: msg.Content,
+		})
+	}
+
+	// Call Ollama API via HTTP with streaming
+	ollamaReq := OllamaChatRequest{
+		Model:    "financial-model:latest",
+		Messages: ollamaMessages,
+		Stream:   true,
+	}
+
+	ollamaURL := os.Getenv("OLLAMA_URL")
+	if ollamaURL == "" {
+		ollamaURL = "http://localhost:11434"
+	}
+	reqBody, _ := json.Marshal(ollamaReq)
+	resp, err := http.Post(ollamaURL+"/api/chat", "application/json", bytes.NewBuffer(reqBody))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to call Ollama API"})
+		return
+	}
+	defer resp.Body.Close()
+
+	// Set up SSE
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+
+	var fullResponse strings.Builder
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			continue
+		}
+
+		var chunk OllamaChatResponse
+		if err := json.Unmarshal([]byte(line), &chunk); err != nil {
+			continue // Skip invalid lines
+		}
+
+		content := chunk.Message.Content
+		fullResponse.WriteString(content)
+
+		// Send chunk via SSE
+		event := fmt.Sprintf("data: %s\n\n", content)
+		c.Writer.WriteString(event)
+		c.Writer.Flush()
+	}
+
+	if err := scanner.Err(); err != nil {
+		// Handle error, but since streaming, maybe just log
+	}
+
+	// Append full assistant response to conversation
+	conversation.Messages = append(conversation.Messages, models.Message{
+		Role:    "assistant",
+		Content: fullResponse.String(),
+	})
+
+	// Save conversation back to Redis (if available)
+	if config.RedisClient != nil {
+		conversationJSONBytes, _ := json.Marshal(conversation)
+		config.RedisClient.Set(ctx, sessionKey, string(conversationJSONBytes), 0) // No expiration
+	}
+
+	// End the stream
+	c.Writer.WriteString("data: [DONE]\n\n")
+	c.Writer.Flush()
+}

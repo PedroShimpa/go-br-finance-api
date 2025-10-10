@@ -36,11 +36,14 @@ func main() {
 		log.Println("⚠️  .env não encontrado, usando variáveis de ambiente do sistema")
 	}
 
-	// Conectar banco
-	config.ConnectDB()
+	// Conectar banco (commented for testing chat without DB)
+	// config.ConnectDB()
 
-	// Executar migrações
-	runMigrations()
+	// Conectar Redis
+	config.ConnectRedis()
+
+	// Executar migrações (commented for testing)
+	// runMigrations()
 
 	// Criar router
 	r := gin.Default()
@@ -62,13 +65,16 @@ func main() {
 	r.GET("/calculations/inflation", handlers.GetInflationData)
 	r.GET("/calculations/investment", handlers.CalculateInvestment)
 
+	// Chat endpoint
+	r.POST("/chat", handlers.ChatWithOllama)
+
 	// Swagger docs endpoint
 	r.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Rodar servidor usando porta do env
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "9090"
+		port = "9091"
 	}
 
 	r.Run(":" + port)
