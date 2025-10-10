@@ -105,6 +105,11 @@ func ChatWithOllama(c *gin.Context) {
 
 	// Prepare messages for Ollama
 	var ollamaMessages []OllamaMessage
+	// Add system message
+	ollamaMessages = append(ollamaMessages, OllamaMessage{
+		Role:    "system",
+		Content: "You are a financial advisor. Provide advice in plain text without any formatting.",
+	})
 	for _, msg := range conversation.Messages {
 		ollamaMessages = append(ollamaMessages, OllamaMessage{
 			Role:    msg.Role,
@@ -152,13 +157,10 @@ func ChatWithOllama(c *gin.Context) {
 		content := chunk.Message.Content
 		fullResponse.WriteString(content)
 
-		// Send each word separately for streaming effect
-		words := strings.Fields(content)
-		for _, word := range words {
-			event := fmt.Sprintf("data: %s \n\n", word)
-			c.Writer.WriteString(event)
-			c.Writer.Flush()
-		}
+		// Send the content as is for real streaming
+		event := fmt.Sprintf("data: %s\n\n", content)
+		c.Writer.WriteString(event)
+		c.Writer.Flush()
 	}
 
 	if err := scanner.Err(); err != nil {
