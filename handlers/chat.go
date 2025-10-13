@@ -130,8 +130,19 @@ func ChatWithOllama(c *gin.Context) {
 	if ollamaURL == "" {
 		ollamaURL = "http://localhost:11434"
 	}
+	ollamaAPIKey := os.Getenv("OLLAMA_API_KEY")
 	reqBody, _ := json.Marshal(ollamaReq)
-	resp, err := http.Post(ollamaURL+"/api/chat", "application/json", bytes.NewBuffer(reqBody))
+	httpReq, err := http.NewRequest("POST", ollamaURL+"/api/chat", bytes.NewBuffer(reqBody))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create request"})
+		return
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	if ollamaAPIKey != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+ollamaAPIKey)
+	}
+	client := &http.Client{}
+	resp, err := client.Do(httpReq)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to call Ollama API"})
 		return
